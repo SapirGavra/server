@@ -1,0 +1,45 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.MuiTableSortLabel-root.MuiTableSortLabel-active,
+.MuiTableSortLabel-root:hover,
+.MuiTableSortLabel-root {
+    color: white !important;
+}
+
+.MuiTableSortLabel-icon {
+    color: white !important;
+}
+
+.MuiIconButton-root {
+    color: white !important;
+}
+
+.MuiPaper-root{
+    height: 40%;
+}
+ .MuiList-root {
+    height: 100%;
+}
+
+.MuiTableContainer-root{
+    max-height: 60vh;
+}
+
+.MuiPopover-paper::-webkit-scrollbar,.MuiList-root::-webkit-scrollbar, .MuiTableContainer-root::-webkit-scrollbar{
+    width: 8px;
+}
+
+.MuiPopover-paper::-webkit-scrollbar-track, .MuiList-root::-webkit-scrollbar-track, .MuiTableContainer-root::-webkit-scrollbar-track {
+    background: lightgray;
+}
+
+.MuiPopover-paper::-webkit-scrollbar-thumb, .MuiList-root::-webkit-scrollbar-thumb, .MuiTableContainer-root::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: gray;
+}
