@@ -23,6 +23,7 @@ const BasicTable: FC = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [AllDataLength, setAllDataLength] = useState(0);
     const [sortConfig, setSortConfig] = useState<{ key: keyof Airplane; direction: 'asc' | 'desc' } | null>(null);
+    const sortLabelRef = useRef<boolean>(false);
 
     const [allRows, setAllRows] = useState<Airplane[]>([]); // Store all rows here
     const [rows, setRows] = useState<Airplane[]>([]);
@@ -67,8 +68,6 @@ const BasicTable: FC = () => {
     }, [])
 
 
-
-
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -86,8 +85,6 @@ const BasicTable: FC = () => {
 
         fetchData();
     }, []);
-
-
 
 
     const startLoading = async () => {
@@ -137,12 +134,22 @@ const BasicTable: FC = () => {
         setSortConfig({ key, direction });
 
         try {
-            const response = await fetch(`http://localhost:3000/airplanes?sortKey=${key}&sortDirection=${direction}`);
+            sortLabelRef.current = true;
+            console.log('sortLabelRef22',sortLabelRef)
+            const response = await fetch(`http://localhost:3000/airplanes?sortKey=${key}&sortDirection=${direction}&isFilterModeRef=${isFilterModeRef.current}&sortLabelRef=${sortLabelRef.current}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch data');
             }
             const data = await response.json();
+            console.log('isFilterModeRef1',isFilterModeRef)
+            console.log('Data',data.data)
+            if(isFilterModeRef.current && sortLabelRef.current) {
+                setAllRows(data.data)
+            }
+
+            else{
                 setRows(data.data);
+            }
             setCurrentIndex(data.currentIndex);
             setAllDataLength(data.AllDataLength);
         } catch (error) {

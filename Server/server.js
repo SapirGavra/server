@@ -46,6 +46,7 @@ router.get('/airplanes/initial', (ctx) => {
 
 router.get('/airplanes', async (ctx) => {
     try {
+        const sortLabelRef = ctx.query.sortLabelRef === 'true';
         const loadingRef = ctx.query.loadingRef === 'true';
         const isFilterModeRef = ctx.query.isFilterModeRef === 'true';
         const filterValues = JSON.parse(ctx.query.filterValues || '{}'); // Ensure filterValues is parsed correctly
@@ -53,14 +54,22 @@ router.get('/airplanes', async (ctx) => {
         const sortDirection = ctx.query.sortDirection;
 
         // If new sorting is applied, update the sort state
-        if (sortKey && sortDirection) {
+        console.log('sortLabelRef1',sortLabelRef)
+        if (sortKey && sortDirection && sortLabelRef) {
             currentSortKey = sortKey;
             currentSortDirection = sortDirection;
-            applySorting(dataToShow, sortKey, sortDirection)
+            if(isFilterModeRef){
+                applySorting(dataToShowFilter, sortKey, sortDirection)
+            }
+            else {
+                applySorting(dataToShow, sortKey, sortDirection)
+            }
         }
 
         // If filter mode is enabled, filter the data
         if (isFilterModeRef) {
+            dataToShowFilter = [...dataToShowFilter]
+            console.log('dataToShowFilter0',dataToShowFilter)
             dataToShowFilter = AllData.filter(row => {
                 return Object.entries(filterValues).every(([key, values]) => {
                     return values.length === 0 || values.includes(row[key]);
@@ -68,10 +77,12 @@ router.get('/airplanes', async (ctx) => {
             });
 
             // Apply sorting to the filtered data if sorting is specified
-            if (currentSortKey && currentSortDirection) {
+            if (currentSortKey && currentSortDirection && sortLabelRef) {
                 applySorting(dataToShowFilter, currentSortKey, currentSortDirection)
+                console.log('dataToShowFilter1',dataToShowFilter)
 
             }
+            console.log('dataToShowFilter2',dataToShowFilter)
 
         } else {
             // If loading more rows (scrolling) and not in filter mode
@@ -88,8 +99,6 @@ router.get('/airplanes', async (ctx) => {
                 }
             }
         }
-        console.log('sapir',dataToShowFilter)
-
         if (isFilterModeRef) {
             ctx.body = {
                 data: dataToShowFilter,
@@ -103,7 +112,6 @@ router.get('/airplanes', async (ctx) => {
         }
 
 
-        console.log('Response sent:', dataToShow);
     } catch (error) {
         ctx.status = 500;
         ctx.body = {
