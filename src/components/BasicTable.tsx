@@ -204,7 +204,7 @@ const BasicTable: FC = () => {
                     <TableRow>
                         <TableCell colSpan={4} align="center">
                             {isFilterModeRef.current ? null :
-                                (loadingRef.current && currentIndex < AllDataLength) || (!error) ? <CircularProgress /> : null}
+                                (loadingRef.current && currentIndex < AllDataLength ) || (!error) ? <CircularProgress /> : null}
                         </TableCell>
                     </TableRow>
                 </TableBody>
