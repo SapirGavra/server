@@ -18,6 +18,8 @@ const startFilter = async (
     ));
 
     // Send the filter values to the server
+    console.log('serializedFilters1',Object.fromEntries(
+        Object.entries(filterValues).map(([key, value]) => [key, Array.from(value!)])))
     const response = await fetch(`http://localhost:3000/airplanes?isFilterModeRef=${isFilterModeRef.current}&filterValues=${serializedFilters}`);
     return response;
 };

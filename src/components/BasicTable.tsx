@@ -22,6 +22,7 @@ import './BasicTable.css';
 const BasicTable: FC = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [AllDataLength, setAllDataLength] = useState(0);
+
     const [sortConfig, setSortConfig] = useState<{ key: keyof Airplane; direction: 'asc' | 'desc' } | null>(null);
     const sortLabelRef = useRef<boolean>(false);
 
@@ -37,7 +38,6 @@ const BasicTable: FC = () => {
 
     const isFilterModeRef = useRef<boolean>(false);
 
-    // const [isFilterMode, setIsFilterMode] = useState(false);
 
     useEffect(() => {
         console.log('row:', rows);
@@ -58,6 +58,7 @@ const BasicTable: FC = () => {
                 }
                 const data = await response.json();
                 setAllRowsToColumn(data.allRows);
+                console.log('data.AllDataLength',data.AllDataLength)
                 setAllDataLength(data.AllDataLength);
             } catch (error) {
                 setError('Failed to fetch data');
@@ -77,7 +78,6 @@ const BasicTable: FC = () => {
                 }
                 const data = await response.json();
                 setRows(data.data);
-
             } catch (error) {
                 setError('Failed to fetch data');
             }
@@ -98,16 +98,21 @@ const BasicTable: FC = () => {
         await fetch(`http://localhost:3000/airplanes?loadingRef=${loadingRef.current}`);
     };
 
+    console.log('AllDataLength',AllDataLength)
+
     const handleScroll = async (event: UIEvent<HTMLDivElement>) => {
         const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
 
         // Check if the user has scrolled to the bottom of the container
-        if (scrollHeight - scrollTop <= clientHeight + 5 && !loadingRef.current) {
+        console.log('isFilterModeRef1',isFilterModeRef)
+        console.log('AllDataLength2',AllDataLength)
+        if (scrollHeight - scrollTop <= clientHeight + 5 && !loadingRef.current && currentIndex < AllDataLength && !isFilterModeRef.current) {
             try {
+
                 const response = await startLoading(); // Notify the server that loading should start
                 const newRows = await response.json();
-
                 setRows(newRows.data);
+                console.log('rowsssss',rows)
                 setCurrentIndex(newRows.currentIndex)
 
             } catch (error) {
@@ -151,7 +156,7 @@ const BasicTable: FC = () => {
                 setRows(data.data);
             }
             setCurrentIndex(data.currentIndex);
-            setAllDataLength(data.AllDataLength);
+            // setAllDataLength(data.AllDataLength);
         } catch (error) {
             setError('Failed to fetch data');
         }
