@@ -58,7 +58,6 @@ const BasicTable: FC = () => {
                 }
                 const data = await response.json();
                 setAllRowsToColumn(data.allRows);
-                console.log('data.AllDataLength',data.AllDataLength)
                 setAllDataLength(data.AllDataLength);
             } catch (error) {
                 setError('Failed to fetch data');
@@ -88,32 +87,36 @@ const BasicTable: FC = () => {
 
 
     const startLoading = async () => {
+        console.log('-------------------------------------------------------')
         loadingRef.current = true;
         const response = await fetch(`http://localhost:3000/airplanes?loadingRef=${loadingRef.current}`);
         return response;
     };
 
     const stopLoading = async () => {
+        console.log('//////////////////////////////////////////////////////////')
         loadingRef.current = false;
+        console.log('scrolll',(loadingRef.current && currentIndex < AllDataLength))
+        console.log('sapir1',loadingRef.current)
+        console.log('sapir2',currentIndex < AllDataLength)
         await fetch(`http://localhost:3000/airplanes?loadingRef=${loadingRef.current}`);
     };
-
-    console.log('AllDataLength',AllDataLength)
 
     const handleScroll = async (event: UIEvent<HTMLDivElement>) => {
         const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
 
         // Check if the user has scrolled to the bottom of the container
-        console.log('isFilterModeRef1',isFilterModeRef)
-        console.log('AllDataLength2',AllDataLength)
         if (scrollHeight - scrollTop <= clientHeight + 5 && !loadingRef.current && currentIndex < AllDataLength && !isFilterModeRef.current) {
             try {
 
                 const response = await startLoading(); // Notify the server that loading should start
                 const newRows = await response.json();
                 setRows(newRows.data);
-                console.log('rowsssss',rows)
                 setCurrentIndex(newRows.currentIndex)
+
+                console.log('scrolll1',(loadingRef.current && currentIndex < AllDataLength))
+                console.log('sapir11',loadingRef.current)
+                console.log('sapir21',currentIndex < AllDataLength)
 
             } catch (error) {
                 console.error('Failed to fetch data:', error);
@@ -140,14 +143,11 @@ const BasicTable: FC = () => {
 
         try {
             sortLabelRef.current = true;
-            console.log('sortLabelRef22',sortLabelRef)
             const response = await fetch(`http://localhost:3000/airplanes?sortKey=${key}&sortDirection=${direction}&isFilterModeRef=${isFilterModeRef.current}&sortLabelRef=${sortLabelRef.current}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch data');
             }
             const data = await response.json();
-            console.log('isFilterModeRef1',isFilterModeRef)
-            console.log('Data',data.data)
             if(isFilterModeRef.current && sortLabelRef.current) {
                 setAllRows(data.data)
             }
@@ -215,8 +215,10 @@ const BasicTable: FC = () => {
                     ))}
                     <TableRow>
                         <TableCell colSpan={4} align="center">
-                            {isFilterModeRef.current ? null :
-                                (loadingRef.current && currentIndex < AllDataLength ) || (!error) ? <CircularProgress /> : null}
+                            {loadingRef && currentIndex < AllDataLength && !isFilterModeRef.current && <CircularProgress />}
+
+                            {/*{isFilterModeRef.current ? null :*/}
+                            {/*    (loadingRef.current && currentIndex < AllDataLength ) || (!error) ? <CircularProgress /> : null }*/}
                         </TableCell>
                     </TableRow>
                 </TableBody>
