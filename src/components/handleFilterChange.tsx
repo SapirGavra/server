@@ -1,4 +1,4 @@
-import { Airplane } from "../types/Airplane";
+import { Airplane } from "../Utils/types";
 import React, { Dispatch, MutableRefObject } from 'react';
 
 type FilterValues = { [key in keyof Airplane]?: Set<string | number> };

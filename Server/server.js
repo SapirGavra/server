@@ -7,9 +7,9 @@ const path = require('path');
 const app = new Koa();
 const router = new Router();
 
-const isEmpty = (obj) => {
+function isEmpty(obj) {
     return Object.keys(obj).length === 0;
-};
+}
 
 function applySorting(data, sortKey, sortDirection) {
     data.sort((a, b) => {

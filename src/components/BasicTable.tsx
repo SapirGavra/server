@@ -13,8 +13,8 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Checkbox from '@mui/material/Checkbox';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import { Airplane } from "../types/Airplane";
-import { columns } from "../types/Column";
+import { Airplane } from "../Utils/types";
+import { columns } from  "../Utils/types";
 import TruncatedCell from './TruncatedCell';
 import { handleFilterChange } from './handleFilterChange';
 import './BasicTable.css';
@@ -87,37 +87,24 @@ const BasicTable: FC = () => {
 
 
     const startLoading = async () => {
-        console.log('-------------------------------------------------------')
         loadingRef.current = true;
         const response = await fetch(`http://localhost:3000/airplanes?loadingRef=${loadingRef.current}`);
         return response;
     };
 
     const stopLoading = async () => {
-        console.log('//////////////////////////////////////////////////////////')
         loadingRef.current = false;
-        console.log('scrolll',(loadingRef.current && currentIndex < AllDataLength))
-        console.log('sapir1',loadingRef.current)
-        console.log('sapir2',currentIndex < AllDataLength)
         await fetch(`http://localhost:3000/airplanes?loadingRef=${loadingRef.current}`);
     };
 
     const handleScroll = async (event: UIEvent<HTMLDivElement>) => {
-        const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
-
-        // Check if the user has scrolled to the bottom of the container
-        if (scrollHeight - scrollTop <= clientHeight + 5 && !loadingRef.current && currentIndex < AllDataLength && !isFilterModeRef.current) {
+            if (!loadingRef.current && currentIndex < AllDataLength && !isFilterModeRef.current) {
             try {
 
                 const response = await startLoading(); // Notify the server that loading should start
                 const newRows = await response.json();
                 setRows(newRows.data);
                 setCurrentIndex(newRows.currentIndex)
-
-                console.log('scrolll1',(loadingRef.current && currentIndex < AllDataLength))
-                console.log('sapir11',loadingRef.current)
-                console.log('sapir21',currentIndex < AllDataLength)
-
             } catch (error) {
                 console.error('Failed to fetch data:', error);
             } finally {
@@ -216,9 +203,6 @@ const BasicTable: FC = () => {
                     <TableRow>
                         <TableCell colSpan={4} align="center">
                             {loadingRef && currentIndex < AllDataLength && !isFilterModeRef.current && <CircularProgress />}
-
-                            {/*{isFilterModeRef.current ? null :*/}
-                            {/*    (loadingRef.current && currentIndex < AllDataLength ) || (!error) ? <CircularProgress /> : null }*/}
                         </TableCell>
                     </TableRow>
                 </TableBody>
