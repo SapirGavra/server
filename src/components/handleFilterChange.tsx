@@ -1,5 +1,6 @@
 import { Airplane } from "../Utils/types";
 import React, { Dispatch, MutableRefObject } from 'react';
+import axios from "axios";
 
 type FilterValues = { [key in keyof Airplane]?: Set<string | number> };
 
@@ -7,27 +8,32 @@ const startFilter = async (
     isFilterModeRef: MutableRefObject<boolean>,
     filterValues: FilterValues
 ) => {
-    // Set filter mode to true
     isFilterModeRef.current = true;
+    const serializedFilters = Object.fromEntries(
+        Object.entries(filterValues).map(([key, value]) => [key, Array.from(value!)])
+    );
 
-    // Convert the Set to an array before serializing
-    const serializedFilters = encodeURIComponent(JSON.stringify(
-        Object.fromEntries(
-            Object.entries(filterValues).map(([key, value]) => [key, Array.from(value!)])
-        )
-    ));
+    console.log('Serialized Filters:', serializedFilters);
+    console.log('isFilterModeRef:', isFilterModeRef.current);
 
-    // Send the filter values to the server
-    const response = await fetch(`http://localhost:3000/airplanes?isFilterModeRef=${isFilterModeRef.current}&filterValues=${serializedFilters}`);
+    const response = await axios.get('http://localhost:3000/airplanes', {
+        params: {
+            filterValues: JSON.stringify(serializedFilters),
+            isFilterModeRef: isFilterModeRef.current,
+        }
+    });
+
     return response;
 };
 
 const stopFilter = async (isFilterModeRef: MutableRefObject<boolean>) => {
     // Set filter mode to false
     isFilterModeRef.current = false;
-
-    // Optionally notify the server that filtering has stopped
-    await fetch(`http://localhost:3000/airplanes?isFilterModeRef=${isFilterModeRef.current}`);
+    await axios.get('http://localhost:3000/airplanes', {
+        params: {
+            isFilterModeRef: isFilterModeRef.current,
+        }
+    });
 };
 
 export const handleFilterChange = async (
@@ -38,7 +44,6 @@ export const handleFilterChange = async (
     isFilterModeRef: MutableRefObject<boolean>,
     setAllRows: Dispatch<React.SetStateAction<Airplane[]>>
 ) => {
-    // Update filterValues with the new filter selection
     const updatedFilterValues = { ...filterValues };
     if (!updatedFilterValues[key]) {
         updatedFilterValues[key] = new Set();
@@ -56,12 +61,11 @@ export const handleFilterChange = async (
 
     try {
         const response = await startFilter(isFilterModeRef, updatedFilterValues);
-        const newRows = await response.json();
+        const newRows = response.data;
         setAllRows(newRows.data);
+
         if (isFiltersEmpty) {
             await stopFilter(isFilterModeRef);
-
-
         }
     } catch (error) {
         console.error('Failed to fetch data', error);

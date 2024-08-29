@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, UIEvent, MouseEvent, FC } from 'react';
+import axios from 'axios';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -14,7 +15,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { Airplane } from "../Utils/types";
-import { columns } from  "../Utils/types";
+import { columns } from "../Utils/types";
 import TruncatedCell from './TruncatedCell';
 import { handleFilterChange } from './handleFilterChange';
 import './BasicTable.css';
@@ -38,7 +39,6 @@ const BasicTable: FC = () => {
 
     const isFilterModeRef = useRef<boolean>(false);
 
-
     useEffect(() => {
         console.log('row:', rows);
     }, [rows]);
@@ -47,64 +47,57 @@ const BasicTable: FC = () => {
         console.log('rowall:', allRows);
     }, [allRows]);
 
-
-    // Fetch initial data once
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const response = await fetch('http://localhost:3000/airplanes/initial');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch initial data');
-                }
-                const data = await response.json();
-                setAllRowsToColumn(data.allRows);
-                setAllDataLength(data.AllDataLength);
+                const response = await axios.get('http://localhost:3000/airplanes/initial');
+                setAllRowsToColumn(response.data.allRows);
+                setAllDataLength(response.data.AllDataLength);
             } catch (error) {
                 setError('Failed to fetch data');
             }
         };
-
         fetchInitialData();
     }, [])
-
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:3000/airplanes');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                setRows(data.data);
+                const response = await axios.get('http://localhost:3000/airplanes');
+                setRows(response.data.data);
             } catch (error) {
                 setError('Failed to fetch data');
             }
         };
-
         fetchData();
     }, []);
 
-
     const startLoading = async () => {
         loadingRef.current = true;
-        const response = await fetch(`http://localhost:3000/airplanes?loadingRef=${loadingRef.current}`);
+        const response = await axios.get(`http://localhost:3000/airplanes`, {
+            params: {
+                loadingRef: loadingRef.current,
+            }
+        });
         return response;
     };
 
     const stopLoading = async () => {
         loadingRef.current = false;
-        await fetch(`http://localhost:3000/airplanes?loadingRef=${loadingRef.current}`);
+        await axios.get(`http://localhost:3000/airplanes`, {
+            params: {
+                loadingRef: loadingRef.current,
+            }
+        });
     };
 
     const handleScroll = async (event: UIEvent<HTMLDivElement>) => {
-            if (!loadingRef.current && currentIndex < AllDataLength && !isFilterModeRef.current) {
+        if (!loadingRef.current && currentIndex < AllDataLength && !isFilterModeRef.current) {
             try {
-
-                const response = await startLoading(); // Notify the server that loading should start
-                const newRows = await response.json();
+                const response = await startLoading();
+                const newRows = response.data;
                 setRows(newRows.data);
-                setCurrentIndex(newRows.currentIndex)
+                setCurrentIndex(newRows.currentIndex);
             } catch (error) {
                 console.error('Failed to fetch data:', error);
             } finally {
@@ -123,35 +116,39 @@ const BasicTable: FC = () => {
         setSelectedKey(null);
     };
 
-
     const handleSort = async (key: keyof Airplane) => {
         const direction: 'asc' | 'desc' = sortConfig && sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
         setSortConfig({ key, direction });
 
         try {
             sortLabelRef.current = true;
-            const response = await fetch(`http://localhost:3000/airplanes?sortKey=${key}&sortDirection=${direction}&isFilterModeRef=${isFilterModeRef.current}&sortLabelRef=${sortLabelRef.current}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch data');
-            }
-            const data = await response.json();
-            if(isFilterModeRef.current && sortLabelRef.current) {
-                setAllRows(data.data)
-            }
+            const response = await axios.get('http://localhost:3000/airplanes', {
+                params: {
+                    sortKey: key,
+                    sortDirection: direction,
+                    isFilterModeRef: isFilterModeRef.current,
+                    sortLabelRef: sortLabelRef.current,
+                }
+            });
 
-            else{
+            const data = response.data;
+
+            if (isFilterModeRef.current && sortLabelRef.current) {
+                setAllRows(data.data);
+            } else {
                 setRows(data.data);
             }
+
             setCurrentIndex(data.currentIndex);
-            // setAllDataLength(data.AllDataLength);
         } catch (error) {
             setError('Failed to fetch data');
         }
     };
 
     const getRows = () => {
-        return !isFilterModeRef.current ? rows: allRows;
+        return !isFilterModeRef.current ? rows : allRows;
     };
+
 
     if (error) {
         return (

@@ -1,27 +1,13 @@
-const Koa = require('koa');
-const Router = require('koa-router');
-const cors = require('@koa/cors');
-const fs = require('fs');
-const path = require('path');
+import { isEmpty, applySorting } from './Utils/functions/functions.js';
+import Koa from 'koa';
+import Router from 'koa-router';
+import cors from '@koa/cors';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const app = new Koa();
 const router = new Router();
-
-function isEmpty(obj) {
-    return Object.keys(obj).length === 0;
-}
-
-function applySorting(data, sortKey, sortDirection) {
-    data.sort((a, b) => {
-        if (a[sortKey] < b[sortKey]) {
-            return sortDirection === 'asc' ? -1 : 1;
-        }
-        if (a[sortKey] > b[sortKey]) {
-            return sortDirection === 'asc' ? 1 : -1;
-        }
-        return 0;
-    });
-}
 
 app.use(cors({
     origin: 'http://localhost:3001',
@@ -29,7 +15,12 @@ app.use(cors({
 
 const rowsLoadFirst = 5;
 const numberRowsToLoad = 2;
-const filePath = path.join(__dirname, 'airplanes.json');
+
+// Get the current file path and directory name
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const filePath = path.join(__dirname, 'Utils/assets/airplanes.json');
 const jsonData = fs.readFileSync(filePath, 'utf-8');
 const AllData = JSON.parse(jsonData);
 
@@ -52,7 +43,7 @@ router.get('/airplanes', async (ctx) => {
         const sortLabelRef = ctx.query.sortLabelRef === 'true';
         const loadingRef = ctx.query.loadingRef === 'true';
         const isFilterModeRef = ctx.query.isFilterModeRef === 'true';
-        const filterValues = JSON.parse(ctx.query.filterValues || '{}');
+        const filterValues = ctx.query.filterValues ? JSON.parse(ctx.query.filterValues) : {};
         const sortKey = ctx.query.sortKey;
         const sortDirection = ctx.query.sortDirection;
 
@@ -79,7 +70,6 @@ router.get('/airplanes', async (ctx) => {
                     applySorting(dataToShowFilter, currentSortKey, currentSortDirection);
                 }
             }
-
         } else {
             if (loadingRef && currentIndex <= AllData.length) {
                 const delay = 1000;
