@@ -1,3 +1,5 @@
+export interface sortConfigType { key: keyof Airplane; direction: 'asc' | 'desc' }
+
 export interface Airplane {
     id: string;
     type: string;

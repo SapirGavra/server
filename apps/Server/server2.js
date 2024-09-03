@@ -22,7 +22,7 @@ const jsonData = fs.readFileSync(filePath, 'utf-8');
 const AllData = JSON.parse(jsonData);
 
 let dataToShow = AllData.slice(0, rowsLoadFirst);
-let dataToShowFilter = [];
+let dataToShowFilter = null;
 let isCurrentRowsAmountRef = rowsLoadFirst;
 let currentSortKey = null;
 let currentSortDirection = null;
@@ -46,43 +46,42 @@ router.get('/airplanes', async (ctx) => {
         if (sortKey && sortDirection && isSoredRef) {
             currentSortKey = sortKey;
             currentSortDirection = sortDirection;
+            applySorting(AllData, sortKey, sortDirection);
+            dataToShow = AllData.slice(0, isCurrentRowsAmountRef);
+
             if (isFilterModeRef) {
+                dataToShowFilter = dataToShowFilter.slice(0, isCurrentRowsAmountRef);
                 applySorting(dataToShowFilter, sortKey, sortDirection);
-            } else {
-                applySorting(dataToShow, sortKey, sortDirection);
             }
         }
 
-        if (isFilterModeRef) {
-            if (!isEmpty(filterValues)) {
-                dataToShowFilter = AllData.filter(row => {
-                    return Object.entries(filterValues).every(([key, values]) => {
-                        return values.length === 0 || values.includes(row[key]);
-                    });
+        if (isFilterModeRef && !isEmpty(filterValues)) {
+            dataToShowFilter = AllData.filter(row => {
+                return Object.entries(filterValues).every(([key, values]) => {
+                    return values.length === 0 || values.includes(row[key]);
                 });
+            });
 
-                if (currentSortKey && currentSortDirection) {
-                    applySorting(dataToShowFilter, currentSortKey, currentSortDirection);
-                }
+            if (currentSortKey && currentSortDirection) {
+                applySorting(dataToShowFilter, currentSortKey, currentSortDirection);
             }
-        } else {
-            if (isLoadingRef && isCurrentRowsAmountRef <= AllData.length) {
-                const delay = 1000;
-                await new Promise(resolve => setTimeout(resolve, delay));
-                const newRows = AllData.slice(isCurrentRowsAmountRef, isCurrentRowsAmountRef + numberRowsToLoad);
-                dataToShow = [...dataToShow, ...newRows];
-                isCurrentRowsAmountRef += numberRowsToLoad;
+        }
 
-                if (currentSortKey && currentSortDirection) {
-                    applySorting(dataToShow, currentSortKey, currentSortDirection);
-                }
-            }
+        if (!isSoredRef && isLoadingRef && isCurrentRowsAmountRef < AllData.length) {
+            const delay = 1000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            const newRows = AllData.slice(isCurrentRowsAmountRef, isCurrentRowsAmountRef + numberRowsToLoad);
+            dataToShow = [...dataToShow, ...newRows];
+            isCurrentRowsAmountRef += numberRowsToLoad;
         }
 
         ctx.body = {
             data: isFilterModeRef ? dataToShowFilter : dataToShow,
             isCurrentRowsAmountRef: isCurrentRowsAmountRef,
         };
+
+        console.log('dataToShow',dataToShow)
 
     } catch (error) {
         ctx.status = 500;

@@ -1,58 +1,71 @@
 import React, { useState, useEffect, useRef, UIEvent, MouseEvent, FC } from 'react';
 import axios from 'axios';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-import CircularProgress from '@mui/material/CircularProgress';
-import TableSortLabel from '@mui/material/TableSortLabel';
-import IconButton from '@mui/material/IconButton';
+// TODO: make all the imports like this, from all the project
+import {Table,MenuItem,Menu,Checkbox,TableBody,TableContainer,TableHead,TableRow,Paper,CircularProgress,TableSortLabel,IconButton} from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import Checkbox from '@mui/material/Checkbox';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import { Airplane } from "../Utils/types";
-import { columns } from "../Utils/types";
-import TruncatedCell from './TruncatedCell';
+import { Airplane,columns, sortConfigType} from "../Utils/types";
 import { handleFilterChange } from './handleFilterChange';
 import './BasicTable.css';
+import {StyledTableCell, StyledTableRow} from "./StyleTable"
 
+
+const INIT_CURRENT_ROWS_AMOUNT_VALUE = 0;
+const INIT_ALL_ROWS_AMOUNT_VALUE = 0;
+const INIT_IS_SORTED_REF = false;
+const INIT_IS_LOADING_REF = false;
+const INIT_IS_FILTER_MODE_REF = false;
 const BasicTable: FC = () => {
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [AllDataLength, setAllDataLength] = useState(0);
+    // TODO: name it: `currentRowsAmount`, useRef, GLOBAL CONST,
+    const isCurrentRowsAmountRef = useRef<number>(INIT_CURRENT_ROWS_AMOUNT_VALUE);
 
-    const [sortConfig, setSortConfig] = useState<{ key: keyof Airplane; direction: 'asc' | 'desc' } | null>(null);
-    const sortLabelRef = useRef<boolean>(false);
+    // TODO: name it: `allRowsAmount`, useRef, GLOBAL CONST,
+    const isAllRowsAmountRef = useRef<number>(INIT_ALL_ROWS_AMOUNT_VALUE);
 
-    const [allRows, setAllRows] = useState<Airplane[]>([]); // Store all rows here
+    // I couldn't change useState to useRef
+    // const sortConfig = useRef<sortConfigType>(null);
+
+    const [sortConfig, setSortConfig] = useState<sortConfigType | null>(null);
+    // TODO: name it: `isSoredRef`
+    const isSoredRef = useRef<boolean>(INIT_IS_SORTED_REF);
+
+
+    // TODO: name it: `filteredRows`
+    const [filteredRows, setFilteredRows] = useState<Airplane[]>([]);
     const [rows, setRows] = useState<Airplane[]>([]);
-    const [allRowsToColumn, setAllRowsToColumn] = useState<Airplane[]>([]); // Store all rows here
 
-    const loadingRef = useRef<boolean>(false);
+    // TODO: name it: `allRowsAmount`, useRef
+    const isAllRowsAmountColumnRef = useRef<Airplane[]>([]);
+
+    const isLoadingRef = useRef<boolean>(INIT_IS_LOADING_REF);
+
+    // I couldn't change useState to useRef
+    // const error = useRef<string | null>(null);
+
     const [error, setError] = useState<string | null>(null);
+
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+    // I couldn't change useState to useRef
+    // const selectedKeyRef = useRef<keyof Airplane | null>(null);
+
     const [selectedKey, setSelectedKey] = useState<keyof Airplane | null>(null);
     const [filterValues, setFilterValues] = useState<{ [key in keyof Airplane]?: Set<string | number> }>({});
-
-    const isFilterModeRef = useRef<boolean>(false);
+    const isFilterModeRef = useRef<boolean>(INIT_IS_FILTER_MODE_REF);
 
     useEffect(() => {
         console.log('row:', rows);
     }, [rows]);
 
     useEffect(() => {
-        console.log('rowall:', allRows);
-    }, [allRows]);
+        console.log('rowall:', filteredRows);
+    }, [filteredRows]);
 
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
                 const response = await axios.get('http://localhost:3000/airplanes/initial');
-                setAllRowsToColumn(response.data.allRows);
-                setAllDataLength(response.data.AllDataLength);
+                isAllRowsAmountColumnRef.current = response.data.isAllRowsAmountColumnRef;
+                isAllRowsAmountRef.current = response.data.isAllRowsAmountRef
             } catch (error) {
                 setError('Failed to fetch data');
             }
@@ -73,31 +86,32 @@ const BasicTable: FC = () => {
     }, []);
 
     const startLoading = async () => {
-        loadingRef.current = true;
+        isLoadingRef.current = true;
         const response = await axios.get(`http://localhost:3000/airplanes`, {
             params: {
-                loadingRef: loadingRef.current,
+                isLoadingRef: isLoadingRef.current,
             }
         });
         return response;
     };
 
     const stopLoading = async () => {
-        loadingRef.current = false;
+        isLoadingRef.current = false;
         await axios.get(`http://localhost:3000/airplanes`, {
             params: {
-                loadingRef: loadingRef.current,
+                isLoadingRef: isLoadingRef.current,
             }
         });
     };
 
     const handleScroll = async (event: UIEvent<HTMLDivElement>) => {
-        if (!loadingRef.current && currentIndex < AllDataLength && !isFilterModeRef.current) {
+        if (!isLoadingRef.current &&  isCurrentRowsAmountRef.current < isAllRowsAmountRef.current && !isFilterModeRef.current) {
             try {
                 const response = await startLoading();
                 const newRows = response.data;
                 setRows(newRows.data);
-                setCurrentIndex(newRows.currentIndex);
+                isCurrentRowsAmountRef.current = newRows.isCurrentRowsAmountRef
+
             } catch (error) {
                 console.error('Failed to fetch data:', error);
             } finally {
@@ -117,38 +131,39 @@ const BasicTable: FC = () => {
     };
 
     const handleSort = async (key: keyof Airplane) => {
-        const direction: 'asc' | 'desc' = sortConfig && sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
+        //TODO: change the logic of the sortConfig, dont give `setSortConfig` to this function.
+        //TODO: use the type `SortConfig`, and don`t write the type everytime
+        // i do its and changed
+        const direction =  sortConfig?.key === key && sortConfig?.direction === 'asc' ? 'desc' : 'asc';
         setSortConfig({ key, direction });
 
         try {
-            sortLabelRef.current = true;
+            isSoredRef.current = true;
             const response = await axios.get('http://localhost:3000/airplanes', {
                 params: {
                     sortKey: key,
                     sortDirection: direction,
                     isFilterModeRef: isFilterModeRef.current,
-                    sortLabelRef: sortLabelRef.current,
+                    isSoredRef: isSoredRef.current,
                 }
             });
 
             const data = response.data;
 
-            if (isFilterModeRef.current && sortLabelRef.current) {
-                setAllRows(data.data);
+            if (isFilterModeRef.current && isSoredRef.current) {
+                setFilteredRows(data.data);
             } else {
                 setRows(data.data);
             }
-
-            setCurrentIndex(data.currentIndex);
+            isCurrentRowsAmountRef.current = data.isCurrentRowsAmountRef
         } catch (error) {
             setError('Failed to fetch data');
         }
     };
 
     const getRows = () => {
-        return !isFilterModeRef.current ? rows : allRows;
+        return !isFilterModeRef.current ? rows : filteredRows;
     };
-
 
     if (error) {
         return (
@@ -156,22 +171,24 @@ const BasicTable: FC = () => {
                 <Table>
                     <TableBody>
                         <TableRow>
-                            <TableCell colSpan={4} align="center">
+                            <StyledTableCell colSpan={4} align="center">
                                 {error}
-                            </TableCell>
+                            </StyledTableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
             </TableContainer>
         );
     }
+
     return (
-        <TableContainer component={Paper} onScroll={handleScroll}>
-            <Table sx={{ backgroundColor: '#222220' }} aria-label="simple table">
-                <TableHead sx={{ backgroundColor: 'black', textAlign: 'center', position: 'sticky', top: 0, zIndex: 1 }}>
+        <TableContainer sx={{ width: '80%', marginX: 'auto', marginTop: '10vh'
+        }} component={Paper} onScroll={handleScroll}>
+            <Table stickyHeader aria-label="sticky table" >
+                <TableHead>
                     <TableRow>
                         {columns.map((column) => (
-                            <TableCell key={column.key} sortDirection={sortConfig?.key === column.key ? sortConfig.direction : false}>
+                            <StyledTableCell key={column.key} sortDirection={sortConfig?.key === column.key ? sortConfig.direction : false}>
                                 <TableSortLabel
                                     active={sortConfig?.key === column.key}
                                     direction={sortConfig?.key === column.key ? sortConfig.direction : 'asc'}
@@ -182,36 +199,36 @@ const BasicTable: FC = () => {
                                 <IconButton onClick={(event) => handleMenuOpen(event, column.key)} size="small">
                                     <MoreVertIcon />
                                 </IconButton>
-                            </TableCell>
+                            </StyledTableCell>
                         ))}
                     </TableRow>
                 </TableHead>
                 <TableBody>
                     {getRows().map((row) => (
-                        <TableRow key={row.id}>
-                            <TableCell sx={{ color: 'white' }} align="center">
+                        <StyledTableRow key={row.id}>
+                            <StyledTableCell  align="center">
                                 {row.id}
-                            </TableCell>
-                            <TruncatedCell text={row.type} maxLength={10} />
-                            <TableCell sx={{ color: 'white' }} align="center">{row.capacity}</TableCell>
-                            <TableCell sx={{ color: 'white' }} align="center">{row.size}</TableCell>
-                        </TableRow>
+                            </StyledTableCell>
+                            <StyledTableCell align="center">{row.type}</StyledTableCell>
+                            <StyledTableCell align="center">{row.capacity}</StyledTableCell>
+                            <StyledTableCell  align="center">{row.size}</StyledTableCell>
+                        </StyledTableRow>
                     ))}
-                    <TableRow>
-                        <TableCell colSpan={4} align="center">
-                            {loadingRef && currentIndex < AllDataLength && !isFilterModeRef.current && <CircularProgress />}
-                        </TableCell>
-                    </TableRow>
+                    <StyledTableRow>
+                        <StyledTableCell colSpan={4} align="center">
+                            {isLoadingRef && isCurrentRowsAmountRef.current < isAllRowsAmountRef.current && !isFilterModeRef.current && <CircularProgress />}
+                        </StyledTableCell>
+                    </StyledTableRow>
                 </TableBody>
             </Table>
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-                {selectedKey && Array.from(new Set((allRowsToColumn).map(item => item[selectedKey])))
+                {selectedKey && Array.from(new Set(isAllRowsAmountColumnRef.current.map(item => item[selectedKey])))
                     .sort()
                     .map(value => (
                         <MenuItem key={value}>
                             <Checkbox
                                 checked={filterValues[selectedKey]?.has(value) || false}
-                                onChange={() => handleFilterChange(selectedKey, value, filterValues, setFilterValues, isFilterModeRef,setAllRows)}
+                                onChange={() => handleFilterChange(selectedKey, value, filterValues, setFilterValues, isFilterModeRef, setFilteredRows)}
                             />
                             {value}
                         </MenuItem>

@@ -13,9 +13,6 @@ const startFilter = async (
         Object.entries(filterValues).map(([key, value]) => [key, Array.from(value!)])
     );
 
-    console.log('Serialized Filters:', serializedFilters);
-    console.log('isFilterModeRef:', isFilterModeRef.current);
-
     const response = await axios.get('http://localhost:3000/airplanes', {
         params: {
             filterValues: JSON.stringify(serializedFilters),
@@ -27,7 +24,6 @@ const startFilter = async (
 };
 
 const stopFilter = async (isFilterModeRef: MutableRefObject<boolean>) => {
-    // Set filter mode to false
     isFilterModeRef.current = false;
     await axios.get('http://localhost:3000/airplanes', {
         params: {
