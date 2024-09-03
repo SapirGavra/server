@@ -1,9 +1,12 @@
 body, html {
     height: 100%;
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background-color: #f0f0f0;
+    /*position: static;*/
+    /*height: 100%;*/
+    /*margin: 0;*/
+    /*display: flex;*/
+    /*justify-content: center;*/
+    /*align-items: center;*/
 }
 
 .MuiTableSortLabel-root.MuiTableSortLabel-active,
@@ -11,6 +14,8 @@ body, html {
 .MuiTableSortLabel-root {
     color: white !important;
 }
+
+
 
 .MuiTableSortLabel-icon {
     color: white !important;
