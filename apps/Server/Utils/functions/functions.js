@@ -14,3 +14,25 @@ export const applySorting = (data, sortKey, sortDirection) => {
         return 0;
     });
 }
+export let currentRowsFilters = [];
+
+export const filterDataByRange = (currentRowsFilters, min, max) => {
+    const filteredData = currentRowsFilters.filter(row => {
+        const size = parseFloat(row.size);
+        return size >= min && size <= max;
+    });
+
+    // Update currentRowsFilters with the filtered data
+    currentRowsFilters = filteredData;
+
+    return filteredData;
+};
+
+console.log('currentRowsFilters-----------------------',currentRowsFilters)
+export const filterDataByValue = (currentRowsFilters, filterValues) => {
+    return currentRowsFilters.filter(row => {
+        return Object.entries(filterValues).every(([key, values]) => {
+            return values.length === 0 || values.includes(row[key]);
+        });
+    });
+};

@@ -5,6 +5,7 @@ import axios from "axios";
 type FilterValues = { [key in keyof Airplane]?: Set<string | number> };
 
 const startFilter = async (
+    isFilterModeRangeRef: MutableRefObject<boolean>,
     isFilterModeRef: MutableRefObject<boolean>,
     filterValues: FilterValues
 ) => {
@@ -17,6 +18,8 @@ const startFilter = async (
         params: {
             filterValues: JSON.stringify(serializedFilters),
             isFilterModeRef: isFilterModeRef.current,
+            isFilterModeRangeRef: isFilterModeRangeRef.current,
+
         }
     });
 
@@ -38,7 +41,8 @@ export const handleFilterChange = async (
     filterValues: FilterValues,
     setFilterValues: Dispatch<React.SetStateAction<FilterValues>>,
     isFilterModeRef: MutableRefObject<boolean>,
-    setAllRows: Dispatch<React.SetStateAction<Airplane[]>>
+    isFilterModeRangeRef: React.MutableRefObject<boolean>,
+    setFilteredRows: Dispatch<React.SetStateAction<Airplane[]>>
 ) => {
     const updatedFilterValues = { ...filterValues };
     if (!updatedFilterValues[key]) {
@@ -56,9 +60,9 @@ export const handleFilterChange = async (
     const isFiltersEmpty = Object.keys(updatedFilterValues).length === 0;
 
     try {
-        const response = await startFilter(isFilterModeRef, updatedFilterValues);
+        const response = await startFilter(isFilterModeRangeRef,isFilterModeRef, updatedFilterValues);
         const newRows = response.data;
-        setAllRows(newRows.data);
+        setFilteredRows(newRows.data);
 
         if (isFiltersEmpty) {
             await stopFilter(isFilterModeRef);

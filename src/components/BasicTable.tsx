@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef, UIEvent, MouseEvent, FC } from 'react';
 import axios from 'axios';
 // TODO: make all the imports like this, from all the project
-import {Table,MenuItem,Menu,Checkbox,TableBody,TableContainer,TableHead,TableRow,Paper,CircularProgress,TableSortLabel,IconButton} from '@mui/material';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import { Airplane,columns, sortConfigType} from "../Utils/types";
+import {
+    Table, MenuItem, Menu, Checkbox, TableBody, TableContainer, TableHead, TableRow, Paper , CircularProgress, TableSortLabel, IconButton, Popover, TextField,  Typography, Box , Button
+} from '@mui/material';import MoreVertIcon from '@mui/icons-material/MoreVert';
+import {Airplane, columns, rangeType, sortConfigType} from "../Utils/types";
 import { handleFilterChange } from './handleFilterChange';
 import './BasicTable.css';
 import {StyledTableCell, StyledTableRow} from "./StyleTable"
+import {handleFilterChangeRange} from "./handleFilterChangeRange";
+
+
 
 
 const INIT_CURRENT_ROWS_AMOUNT_VALUE = 0;
@@ -48,9 +52,18 @@ const BasicTable: FC = () => {
     // I couldn't change useState to useRef
     // const selectedKeyRef = useRef<keyof Airplane | null>(null);
 
-    const [selectedKey, setSelectedKey] = useState<keyof Airplane | null>(null);
+    const [selectedKey, setSelectedKey] = useState<keyof Airplane>('size');
     const [filterValues, setFilterValues] = useState<{ [key in keyof Airplane]?: Set<string | number> }>({});
     const isFilterModeRef = useRef<boolean>(INIT_IS_FILTER_MODE_REF);
+
+    const isFilterModeRangeRef = useRef<boolean>(INIT_IS_FILTER_MODE_REF);
+
+
+    const [popoverOpen, setPopoverOpen] = useState(false);
+
+    const [sizeRange, setSizeRange] = useState<rangeType>({ min: '', max: ''});
+
+    const [popoverValue, setPopoverValue] = useState<string>('');
 
     useEffect(() => {
         console.log('row:', rows);
@@ -84,6 +97,39 @@ const BasicTable: FC = () => {
         };
         fetchData();
     }, []);
+
+    const handlePopoverOpen = () => {
+        setPopoverOpen(true);
+    };
+
+    console.log('sizeRange1',sizeRange)
+    const handlePopoverClean = () => {
+        setAnchorEl(null);
+        setPopoverOpen(false);
+
+
+        if (sizeRange) {
+            sizeRange.min='';
+            sizeRange.max='';
+            handleFilterChangeRange(sizeRange, selectedKey, isFilterModeRangeRef, setFilteredRows);
+        }
+    };
+
+    const handlePopoverSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (sizeRange) {
+            handleFilterChangeRange(sizeRange, selectedKey, isFilterModeRangeRef, setFilteredRows);
+        }
+        handlePopoverClose();
+    };
+
+
+
+
+    const handlePopoverClose = () => {
+        setAnchorEl(null);
+        setPopoverOpen(false);
+    };
 
     const startLoading = async () => {
         isLoadingRef.current = true;
@@ -121,20 +167,26 @@ const BasicTable: FC = () => {
     };
 
     const handleMenuOpen = (event: MouseEvent<HTMLButtonElement>, key: keyof Airplane) => {
-        setAnchorEl(event.currentTarget);
-        setSelectedKey(key);
+        if (key !== 'size') {
+            setAnchorEl(event.currentTarget);
+            setSelectedKey(key);
+        } else {
+            setAnchorEl(event.currentTarget);
+            handlePopoverOpen();
+        }
     };
+
 
     const handleMenuClose = () => {
         setAnchorEl(null);
-        setSelectedKey(null);
+        setSelectedKey('size');
     };
+
 
     const handleSort = async (key: keyof Airplane) => {
         //TODO: change the logic of the sortConfig, dont give `setSortConfig` to this function.
         //TODO: use the type `SortConfig`, and don`t write the type everytime
-        // i do its and changed
-        const direction =  sortConfig?.key === key && sortConfig?.direction === 'asc' ? 'desc' : 'asc';
+        const direction = sortConfig?.key === key && sortConfig?.direction === 'asc' ? 'desc' : 'asc';
         setSortConfig({ key, direction });
 
         try {
@@ -162,8 +214,15 @@ const BasicTable: FC = () => {
     };
 
     const getRows = () => {
-        return !isFilterModeRef.current ? rows : filteredRows;
+        if (isFilterModeRef.current || isFilterModeRangeRef.current) {
+            return filteredRows;
+        } else {
+            return rows;
+        }
     };
+
+
+
 
     if (error) {
         return (
@@ -181,6 +240,7 @@ const BasicTable: FC = () => {
         );
     }
 
+    console.log('range',sizeRange)
     return (
         <TableContainer sx={{ width: '80%', marginX: 'auto', marginTop: '10vh'
         }} component={Paper} onScroll={handleScroll}>
@@ -211,7 +271,7 @@ const BasicTable: FC = () => {
                             </StyledTableCell>
                             <StyledTableCell align="center">{row.type}</StyledTableCell>
                             <StyledTableCell align="center">{row.capacity}</StyledTableCell>
-                            <StyledTableCell  align="center">{row.size}</StyledTableCell>
+                            <StyledTableCell align="center">{row.size}</StyledTableCell>
                         </StyledTableRow>
                     ))}
                     <StyledTableRow>
@@ -228,12 +288,69 @@ const BasicTable: FC = () => {
                         <MenuItem key={value}>
                             <Checkbox
                                 checked={filterValues[selectedKey]?.has(value) || false}
-                                onChange={() => handleFilterChange(selectedKey, value, filterValues, setFilterValues, isFilterModeRef, setFilteredRows)}
+                                onChange={() => handleFilterChange(selectedKey, value, filterValues, setFilterValues, isFilterModeRef,isFilterModeRangeRef, setFilteredRows)}
                             />
                             {value}
                         </MenuItem>
                     ))}
             </Menu>
+            <Popover
+                // sx={{width:'50%',height:'50%'}}
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'left',
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'left',
+                }}
+                open={popoverOpen}
+                anchorEl={anchorEl}
+                onClose={handlePopoverClose}
+
+            >
+                <Box p={2} width={300} >
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Typography >Filter by Size</Typography>
+                        <IconButton onClick={handlePopoverClose}>
+                        </IconButton>
+                    </Box>
+                    <form onSubmit={handlePopoverSubmit}>
+                        <TextField
+                            autoFocus
+                            margin="dense"
+                            id="minSize"
+                            label="Min Size"
+                            type="number"
+                            variant="outlined"
+                            value={sizeRange?.min}
+                            onChange={({target}) => setSizeRange((prev) => ({
+                                ...prev,
+                                min: target.value,
+                                max: prev.max,
+                            }))}
+
+                        />
+                        <TextField
+                            margin="dense"
+                            id="maxSize"
+                            label="Max Size"
+                            type="number"
+                            variant="outlined"
+                            value={sizeRange.max}
+                            onChange={({target}) => setSizeRange((prev) => ({
+                                ...prev,
+                                min: prev.min,
+                                max: target.value,
+                            }))}
+                        />
+                        <Box mt={1} display="flex" justifyContent="flex-end">
+                            <Button onClick={handlePopoverClean} color="primary">Clean</Button>
+                            <Button type="submit" color="primary" style={{ marginLeft: 8 }}>Apply</Button>
+                        </Box>
+                    </form>
+                </Box>
+            </Popover>
         </TableContainer>
     );
 };
