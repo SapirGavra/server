@@ -3,6 +3,15 @@ export const isEmpty = (obj) => {
     return Object.keys(obj).length === 0;
 }
 
+export const loadMoreRows = async (numberRowsToLoad, data, isCurrentRowsAmount, currentData) => {
+    const delay = 1000;
+    await new Promise(resolve => setTimeout(resolve, delay));
+    const newRows = data.slice(isCurrentRowsAmount, isCurrentRowsAmount + numberRowsToLoad);
+    currentData = [...currentData, ...newRows];
+    isCurrentRowsAmount += numberRowsToLoad;
+    return { currentData, isCurrentRowsAmount };
+};
+
 export const applySorting = (data, sortKey, sortDirection) => {
     data.sort((a, b) => {
         if (a[sortKey] < b[sortKey]) {
@@ -14,25 +23,19 @@ export const applySorting = (data, sortKey, sortDirection) => {
         return 0;
     });
 }
-export let currentRowsFilters = [];
 
-export const filterDataByRange = (currentRowsFilters, min, max) => {
-    const filteredData = currentRowsFilters.filter(row => {
+export const filterDataByRange = (data, min, max) => {
+    return data.filter(row => {
         const size = parseFloat(row.size);
         return size >= min && size <= max;
     });
-
-    // Update currentRowsFilters with the filtered data
-    currentRowsFilters = filteredData;
-
-    return filteredData;
 };
 
-console.log('currentRowsFilters-----------------------',currentRowsFilters)
-export const filterDataByValue = (currentRowsFilters, filterValues) => {
-    return currentRowsFilters.filter(row => {
-        return Object.entries(filterValues).every(([key, values]) => {
+export const filterDataByValue = (data,filterValuesCheckBox) => {
+    return data.filter(row => {
+        return Object.entries(filterValuesCheckBox).every(([key, values]) => {
             return values.length === 0 || values.includes(row[key]);
         });
     });
+
 };

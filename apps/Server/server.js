@@ -36,14 +36,14 @@ router.get('/airplanes/initial', (ctx) => {
 
 router.get('/airplanes', async (ctx) => {
     try {
-        const isSoredRef = ctx.query.isSoredRef === 'true';
+        const isSortedRef = ctx.query.isSortedRef === 'true';
         const isLoadingRef = ctx.query.isLoadingRef === 'true';
         const isFilterModeRef = ctx.query.isFilterModeRef === 'true';
         const filterValues = ctx.query.filterValues ? JSON.parse(ctx.query.filterValues) : {};
         const sortKey = ctx.query.sortKey;
         const sortDirection = ctx.query.sortDirection;
 
-        if (sortKey && sortDirection && isSoredRef) {
+        if (sortKey && sortDirection && isSortedRef) {
             currentSortKey = sortKey;
             currentSortDirection = sortDirection;
             if (isFilterModeRef) {

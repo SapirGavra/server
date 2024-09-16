@@ -1,4 +1,7 @@
-import { isEmpty, applySorting, filterDataByRange,currentRowsFilters } from './Utils/functions/functions.js';
+import {
+    filterDataByRange,loadMoreRows,
+    filterDataByValue, applySorting
+} from './Utils/functions/functions.js';
 import Koa from 'koa';
 import Router from 'koa-router';
 import cors from '@koa/cors';
@@ -22,12 +25,9 @@ const filePath = path.join(__dirname, 'Utils/assets/airplanes.json');
 const jsonData = fs.readFileSync(filePath, 'utf-8');
 const AllData = JSON.parse(jsonData);
 
+let currentData = AllData.slice(0, rowsLoadFirst);
+let isCurrentRowsAmount = rowsLoadFirst;
 
-let dataToShow = AllData.slice(0, rowsLoadFirst);
-let dataToShowFilter = null;
-let isCurrentRowsAmountRef = rowsLoadFirst;
-let currentSortKey = null;
-let currentSortDirection = null;
 
 router.get('/airplanes/initial', (ctx) => {
     ctx.body = {
@@ -38,80 +38,58 @@ router.get('/airplanes/initial', (ctx) => {
 
 router.get('/airplanes', async (ctx) => {
     try {
-        const minRange = ctx.query.minSize
-        const maxRange = ctx.query.maxSize
-        const selectedKey = ctx.query.keySize
-
-        const minSize = parseFloat(minRange);
-        const maxSize = parseFloat(maxRange);
-
-
-        const isSoredRef = ctx.query.isSoredRef === 'true';
-        const isLoadingRef = ctx.query.isLoadingRef === 'true';
-        const isFilterModeRef = ctx.query.isFilterModeRef === 'true';
-        const isFilterModeRangeRef = ctx.query.isFilterModeRangeRef === 'true';
-
-        const filterValues = ctx.query.filterValues ? JSON.parse(ctx.query.filterValues) : {};
         const sortKey = ctx.query.sortKey;
         const sortDirection = ctx.query.sortDirection;
+        const isLoadingRef = ctx.query.isLoadingRef === 'true';
+        const filterValuesCheckBox = ctx.query.filterValues ? JSON.parse(ctx.query.filterValues) : {};
+        const minRange = ctx.query.minSize
+        const maxRange = ctx.query.maxSize
 
-
-
-console.log('currentRowsFilters',currentRowsFilters)
-
-        if (sortKey && sortDirection && isSoredRef) {
-            currentSortKey = sortKey;
-            currentSortDirection = sortDirection;
+        if (sortKey) {
             applySorting(AllData, sortKey, sortDirection);
-            dataToShow = AllData.slice(0, isCurrentRowsAmountRef);
+            currentData = AllData.slice(0, rowsLoadFirst);
+        }
 
-            if (isFilterModeRef) {
-                dataToShowFilter = dataToShowFilter.slice(0, isCurrentRowsAmountRef);
-                applySorting(dataToShowFilter, sortKey, sortDirection);
+        if (isLoadingRef ) {
+            if (isCurrentRowsAmount < AllData.length) {
+                const result = await loadMoreRows(numberRowsToLoad, AllData, isCurrentRowsAmount, currentData);
+                currentData = result.currentData;
+                isCurrentRowsAmount = result.isCurrentRowsAmount;
             }
         }
-        if (isFilterModeRef && !isEmpty(filterValues)) {
-            dataToShowFilter = AllData.filter(row => {
-                return Object.entries(filterValues).every(([key, values]) => {
-                    return values.length === 0 || values.includes(row[key]);
-                });
-            });
 
+
+        if(minRange){
+            currentData = filterDataByRange(AllData, minRange, maxRange);
+            if (sortKey) {
+                applySorting(currentData, sortKey, sortDirection);
+            }
+            if (Object.keys(filterValuesCheckBox).length > 0 ) {
+                currentData = filterDataByValue(currentData, filterValuesCheckBox);
+            }
+        }
+        if (Object.keys(filterValuesCheckBox).length > 0 && !minRange && !isLoadingRef) {
+            currentData = AllData.slice(0, isCurrentRowsAmount);
         }
 
-        if (isFilterModeRangeRef && selectedKey === "size" ) {
-            dataToShowFilter = filterDataByRange(AllData, minSize, maxSize);
+        if (Object.keys(filterValuesCheckBox).length > 0 ) {
+            currentData = filterDataByValue(AllData, filterValuesCheckBox);
+            if (sortKey) {
+                applySorting(currentData, sortKey, sortDirection);
+            }
+            if(minRange) {
+                currentData = filterDataByRange(currentData, minRange, maxRange);
+            }
 
-            dataToShowFilter = AllData.filter(row => {
-                    const size = parseFloat(row.size);
-                    return size >= minSize && size <= maxSize;
-
-                });
         }
-
-        if (currentSortKey && currentSortDirection) {
-            applySorting(dataToShowFilter, currentSortKey, currentSortDirection);
-        }
-
-
-
-
-        console.log('Filtered data by size:', dataToShowFilter);
-
-        if (!isSoredRef && isLoadingRef && isCurrentRowsAmountRef < AllData.length) {
-            const delay = 1000;
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            const newRows = AllData.slice(isCurrentRowsAmountRef, isCurrentRowsAmountRef + numberRowsToLoad);
-            dataToShow = [...dataToShow, ...newRows];
-            isCurrentRowsAmountRef += numberRowsToLoad;
+        if (Object.keys(filterValuesCheckBox).length === 0 && !minRange && !isLoadingRef){
+            currentData = AllData.slice(0, isCurrentRowsAmount);
         }
 
         ctx.body = {
-            data: isFilterModeRef || isFilterModeRangeRef ? dataToShowFilter : dataToShow,
-            isCurrentRowsAmountRef: isCurrentRowsAmountRef,
+            data: currentData,
+            isCurrentRowsAmount: isCurrentRowsAmount,
         };
-
 
     } catch (error) {
         ctx.status = 500;
@@ -129,3 +107,5 @@ app
 app.listen(3000, () => {
     console.log('Server is running on http://localhost:3000');
 });
+
+
