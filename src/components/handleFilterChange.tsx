@@ -1,67 +1,89 @@
-import { Airplane } from "../types/Airplane";
-import React, { Dispatch, MutableRefObject } from 'react';
-
-type FilterValues = { [key in keyof Airplane]?: Set<string | number> };
+import { Airplane, FilterType } from "../Utils/types";
+import React, { Dispatch, MutableRefObject, SetStateAction } from 'react';
+import axios from "axios";
 
 const startFilter = async (
-    isFilterModeRef: MutableRefObject<boolean>,
-    filterValues: FilterValues
+    Filters: FilterType,
+    SortKey: MutableRefObject<String>,
+    SortDirection: MutableRefObject<String>,
+    min?: number,
+    max?: number
 ) => {
-    // Set filter mode to true
-    isFilterModeRef.current = true;
+    const serializedFilters = Object.fromEntries(
+        Array.from(Filters.checkbox.entries()).map(([key, value]) => [key, Array.from(value)])
+    );
+    const response = await axios.get('http://localhost:3000/airplanes', {
+        params: {
+            filterValues: JSON.stringify(serializedFilters),
+            SortKey : SortKey.current,
+            sortDirection : SortDirection.current,
+            minSize: min,
+            maxSize: max,
+        }
+    });
 
-    // Convert the Set to an array before serializing
-    const serializedFilters = encodeURIComponent(JSON.stringify(
-        Object.fromEntries(
-            Object.entries(filterValues).map(([key, value]) => [key, Array.from(value!)])
-        )
-    ));
-
-    // Send the filter values to the server
-    const response = await fetch(`http://localhost:3000/airplanes?isFilterModeRef=${isFilterModeRef.current}&filterValues=${serializedFilters}`);
     return response;
 };
 
-const stopFilter = async (isFilterModeRef: MutableRefObject<boolean>) => {
-    // Set filter mode to false
-    isFilterModeRef.current = false;
+const stopFilter =async (
+    Filters: FilterType,
+) => {
+    const serializedFilters = Object.fromEntries(
+        Array.from(Filters.checkbox.entries()).map(([key, value]) => [key, Array.from(value)])
+    );
+    const response = await axios.get('http://localhost:3000/airplanes', {
+        params: {
+            filterValues: JSON.stringify(serializedFilters),
+        }
+    });
 
-    // Optionally notify the server that filtering has stopped
-    await fetch(`http://localhost:3000/airplanes?isFilterModeRef=${isFilterModeRef.current}`);
+    return response;
 };
 
 export const handleFilterChange = async (
     key: keyof Airplane,
     value: string | number,
-    filterValues: FilterValues,
-    setFilterValues: Dispatch<React.SetStateAction<FilterValues>>,
-    isFilterModeRef: MutableRefObject<boolean>,
-    setAllRows: Dispatch<React.SetStateAction<Airplane[]>>
+    Filters: MutableRefObject<FilterType>,
+    setFilteredRows: Dispatch<SetStateAction<Airplane[]>>,
+    SortKey: MutableRefObject<String>,
+    SortDirection: MutableRefObject<String>
 ) => {
-    // Update filterValues with the new filter selection
-    const updatedFilterValues = { ...filterValues };
-    if (!updatedFilterValues[key]) {
-        updatedFilterValues[key] = new Set();
+
+
+
+    const min = Filters.current.range.get(key)?.min ?? undefined;
+    const max = Filters.current.range.get(key)?.max ?? undefined;
+
+    const updatedFilterValues = {...Filters.current};
+
+    if (!updatedFilterValues.checkbox.has(key)) {
+        updatedFilterValues.checkbox.set(key, new Set());
     }
-    if (updatedFilterValues[key]!.has(value)) {
-        updatedFilterValues[key]!.delete(value);
-        if (updatedFilterValues[key]!.size === 0) {
-            delete updatedFilterValues[key];
+
+    if (updatedFilterValues.checkbox.get(key)!.has(value)) {
+        updatedFilterValues.checkbox.get(key)!.delete(value);
+
+        if (updatedFilterValues.checkbox.get(key)!.size === 0) {
+            updatedFilterValues.checkbox.delete(key);
+
         }
+
     } else {
-        updatedFilterValues[key]!.add(value);
+        updatedFilterValues.checkbox.get(key)!.add(value);
+
     }
-    setFilterValues(updatedFilterValues);
-    const isFiltersEmpty = Object.keys(updatedFilterValues).length === 0;
+
+    Filters.current.checkbox = updatedFilterValues.checkbox;
+
+    const isFiltersEmpty = updatedFilterValues.checkbox.size === 0;
+
 
     try {
-        const response = await startFilter(isFilterModeRef, updatedFilterValues);
-        const newRows = await response.json();
-        setAllRows(newRows.data);
+        const response = await startFilter(Filters.current,SortKey,SortDirection,min,max);
+        const newRows = response.data;
+        setFilteredRows(newRows.data);
         if (isFiltersEmpty) {
-            await stopFilter(isFilterModeRef);
-
-
+            await stopFilter(Filters.current);
         }
     } catch (error) {
         console.error('Failed to fetch data', error);

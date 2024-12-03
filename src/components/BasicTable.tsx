@@ -1,227 +1,221 @@
 import React, { useState, useEffect, useRef, UIEvent, MouseEvent, FC } from 'react';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-import CircularProgress from '@mui/material/CircularProgress';
-import TableSortLabel from '@mui/material/TableSortLabel';
-import IconButton from '@mui/material/IconButton';
+import axios from 'axios';
+import { Table, TableBody, TableContainer, TableHead, TableRow, Paper, CircularProgress, TableSortLabel, IconButton
+} from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import Checkbox from '@mui/material/Checkbox';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import { Airplane } from "../types/Airplane";
-import { columns } from "../types/Column";
-import TruncatedCell from './TruncatedCell';
-import { handleFilterChange } from './handleFilterChange';
+import { Airplane, columns, FilterType } from "../Utils/types";
 import './BasicTable.css';
+import { StyledTableCell, StyledTableRow } from "./StyleTable";
+import Menu from './Menu';
+import Popover from './Popover';
+
+
+const INIT_CURRENT_ROWS_AMOUNT_VALUE = 0;
+const INIT_ALL_ROWS_AMOUNT_VALUE = 0;
+const INIT_IS_SORTED_REF = false;
+const INIT_IS_LOADING_REF = false;
+
+export const defaultFilters: FilterType = {
+    range: new Map<keyof Airplane, { min: 0; max: 0 }>(),
+    checkbox: new Map<keyof Airplane, Set<string | number>>(),
+    sort: new Map<keyof Airplane, {direction:'asc' | 'desc'}>()
+};
 
 const BasicTable: FC = () => {
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [AllDataLength, setAllDataLength] = useState(0);
-    const [sortConfig, setSortConfig] = useState<{ key: keyof Airplane; direction: 'asc' | 'desc' } | null>(null);
-
-    const [allRows, setAllRows] = useState<Airplane[]>([]); // Store all rows here
+    const isSelectedKeyRef = useRef<keyof Airplane>('size');
+    const isSortedRef = useRef<boolean>(INIT_IS_SORTED_REF);
+    const SortKey = useRef<string>('');
+    const SortDirection = useRef<string>('');
+    const isLoadingRef = useRef<boolean>(INIT_IS_LOADING_REF);
+    const isCurrentRowsAmountRef = useRef<number>(INIT_CURRENT_ROWS_AMOUNT_VALUE);
+    const isAllRowsAmountRef = useRef<number>(INIT_ALL_ROWS_AMOUNT_VALUE);
+    const filters = useRef<FilterType>(defaultFilters);
     const [rows, setRows] = useState<Airplane[]>([]);
-    const [allRowsToColumn, setAllRowsToColumn] = useState<Airplane[]>([]); // Store all rows here
-
-    const loadingRef = useRef<boolean>(false);
+    const isAllRowsAmountColumnRef = useRef<Airplane[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const [selectedKey, setSelectedKey] = useState<keyof Airplane | null>(null);
-    const [filterValues, setFilterValues] = useState<{ [key in keyof Airplane]?: Set<string | number> }>({});
 
-    const isFilterModeRef = useRef<boolean>(false);
-
-    // const [isFilterMode, setIsFilterMode] = useState(false);
 
     useEffect(() => {
-        console.log('row:', rows);
+        console.log('Rows:', rows);
     }, [rows]);
 
     useEffect(() => {
-        console.log('rowall:', allRows);
-    }, [allRows]);
-
-
-    // Fetch initial data once
-    useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const response = await fetch('http://localhost:3000/airplanes/initial');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch initial data');
-                }
-                const data = await response.json();
-                setAllRowsToColumn(data.allRows);
-                setAllDataLength(data.AllDataLength);
+                const response = await axios.get('http://localhost:3000/airplanes/initial');
+                isAllRowsAmountColumnRef.current = response.data.isAllRowsAmountColumnRef;
+                isAllRowsAmountRef.current = response.data.isAllRowsAmountRef;
             } catch (error) {
-                setError('Failed to fetch data');
+                setError('Failed to fetch initial data');
             }
         };
-
         fetchInitialData();
-    }, [])
-
-
-
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:3000/airplanes');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                setRows(data.data);
-
+                const response = await axios.get('http://localhost:3000/airplanes');
+                setRows(response.data.data);
             } catch (error) {
                 setError('Failed to fetch data');
             }
         };
-
         fetchData();
     }, []);
-
-
-
-
     const startLoading = async () => {
-        loadingRef.current = true;
-        const response = await fetch(`http://localhost:3000/airplanes?loadingRef=${loadingRef.current}`);
+        isLoadingRef.current = true;
+        const response = await axios.get(`http://localhost:3000/airplanes`, {
+            params: {
+                isLoadingRef: isLoadingRef.current,
+                SortKey : SortKey.current,
+                sortDirection : SortDirection.current
+            }
+        });
         return response;
     };
-
     const stopLoading = async () => {
-        loadingRef.current = false;
-        await fetch(`http://localhost:3000/airplanes?loadingRef=${loadingRef.current}`);
+        if (filters.current.checkbox.size == 0) {
+            isLoadingRef.current = false;
+            await axios.get(`http://localhost:3000/airplanes`, {
+                params: {
+                    isLoadingRef: isLoadingRef.current,
+
+                }
+            });
+        }
+
     };
 
     const handleScroll = async (event: UIEvent<HTMLDivElement>) => {
         const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
-
-        // Check if the user has scrolled to the bottom of the container
-        if (scrollHeight - scrollTop <= clientHeight + 5 && !loadingRef.current) {
+        if (!isLoadingRef.current && (scrollHeight - scrollTop <= clientHeight) && filters.current.range.size===0 && filters.current.checkbox.size ===0) {
             try {
-                const response = await startLoading(); // Notify the server that loading should start
-                const newRows = await response.json();
-
+                const response = await startLoading();
+                const newRows = response.data;
                 setRows(newRows.data);
-                setCurrentIndex(newRows.currentIndex)
+                isCurrentRowsAmountRef.current = newRows.isCurrentRowsAmount
 
             } catch (error) {
                 console.error('Failed to fetch data:', error);
             } finally {
                 await stopLoading();
             }
-        }
-    };
-
-    const handleMenuOpen = (event: MouseEvent<HTMLButtonElement>, key: keyof Airplane) => {
-        setAnchorEl(event.currentTarget);
-        setSelectedKey(key);
-    };
-
-    const handleMenuClose = () => {
-        setAnchorEl(null);
-        setSelectedKey(null);
-    };
-
+        };
+    }
 
     const handleSort = async (key: keyof Airplane) => {
-        const direction: 'asc' | 'desc' = sortConfig && sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
-        setSortConfig({ key, direction });
+        filters.current.sort.clear();
+        const direction = filters.current.sort.has(key) && filters.current.sort.get(key)?.direction === 'asc' ? 'desc' : 'asc';
+        filters.current.sort.set(key,{direction: direction})
+        isSortedRef.current = true;
+        SortKey.current = key;
+        SortDirection.current = direction
+        const min = filters.current.range.get(key)?.min;
+        const max = filters.current.range.get(key)?.max;
+
+        const serializedFilters = Object.fromEntries(
+            Array.from(filters.current.checkbox.entries()).map(([key, value]) => [key, Array.from(value)])
+        );
 
         try {
-            const response = await fetch(`http://localhost:3000/airplanes?sortKey=${key}&sortDirection=${direction}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch data');
-            }
-            const data = await response.json();
-                setRows(data.data);
-            setCurrentIndex(data.currentIndex);
-            setAllDataLength(data.AllDataLength);
+            const response = await axios.get('http://localhost:3000/airplanes', {
+                params: {
+                    sortKey: key,
+                    sortDirection: direction,
+                    filterValues: JSON.stringify(serializedFilters),
+                    minSize: min,
+                    maxSize: max,
+
+                }
+            });
+
+            const data = response.data;
+            setRows(data.data);
+            isCurrentRowsAmountRef.current = data.isCurrentRowsAmountRef
         } catch (error) {
             setError('Failed to fetch data');
         }
     };
-
-    const getRows = () => {
-        return !isFilterModeRef.current ? rows: allRows;
+    const handleMenuOpen = (event: MouseEvent<HTMLButtonElement>, key: keyof Airplane) => {
+        setAnchorEl(event.currentTarget);
+        isSelectedKeyRef.current = key;
+    };
+    const handleMenuOpenRange = (event: MouseEvent<HTMLButtonElement>, key: keyof Airplane) => {
+        setAnchorEl(event.currentTarget);
+        isSelectedKeyRef.current = key;
     };
 
     if (error) {
         return (
-            <TableContainer component={Paper}>
+            <TableContainer sx={{ width: '80%', marginX: 'auto', marginTop: '50vh' }} component={Paper}>
                 <Table>
                     <TableBody>
                         <TableRow>
-                            <TableCell colSpan={4} align="center">
+                            <StyledTableCell colSpan={4} align="center">
                                 {error}
-                            </TableCell>
+                            </StyledTableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
             </TableContainer>
         );
     }
+
     return (
-        <TableContainer component={Paper} onScroll={handleScroll}>
-            <Table sx={{ backgroundColor: '#222220' }} aria-label="simple table">
-                <TableHead sx={{ backgroundColor: 'black', textAlign: 'center', position: 'sticky', top: 0, zIndex: 1 }}>
+        <TableContainer sx={{ width: '80%', marginX: 'auto', marginTop: '10vh' }} component={Paper} onScroll={handleScroll}>
+            <Table stickyHeader aria-label="sticky table">
+                <TableHead>
                     <TableRow>
                         {columns.map((column) => (
-                            <TableCell key={column.key} sortDirection={sortConfig?.key === column.key ? sortConfig.direction : false}>
+                            <StyledTableCell key={column.key} sortDirection={filters.current.sort.get(column.key)?.direction}>
                                 <TableSortLabel
-                                    active={sortConfig?.key === column.key}
-                                    direction={sortConfig?.key === column.key ? sortConfig.direction : 'asc'}
+                                    active={filters.current.sort.has(column.key)}
+                                    direction={filters.current.sort.has(column.key) ? filters.current.sort.get(column.key)?.direction : 'asc'}
                                     onClick={() => handleSort(column.key)}
                                 >
                                     {column.label}
                                 </TableSortLabel>
-                                <IconButton onClick={(event) => handleMenuOpen(event, column.key)} size="small">
+                                <IconButton
+                                    onClick={(event) =>
+                                        column.key === 'size'
+                                            ? handleMenuOpenRange(event, column.key)
+                                            : handleMenuOpen(event, column.key)
+                                    }
+                                    size="small"
+                                >
                                     <MoreVertIcon />
                                 </IconButton>
-                            </TableCell>
+                            </StyledTableCell>
                         ))}
                     </TableRow>
+
                 </TableHead>
                 <TableBody>
-                    {getRows().map((row) => (
-                        <TableRow key={row.id}>
-                            <TableCell sx={{ color: 'white' }} align="center">
-                                {row.id}
-                            </TableCell>
-                            <TruncatedCell text={row.type} maxLength={10} />
-                            <TableCell sx={{ color: 'white' }} align="center">{row.capacity}</TableCell>
-                            <TableCell sx={{ color: 'white' }} align="center">{row.size}</TableCell>
-                        </TableRow>
+                    {rows.map((row) => (
+                        <StyledTableRow key={row.id}>
+                            <StyledTableCell align="center">{row.id}</StyledTableCell>
+                            <StyledTableCell align="center">{row.type}</StyledTableCell>
+                            <StyledTableCell align="center">{row.capacity}</StyledTableCell>
+                            <StyledTableCell align="center">{row.size}</StyledTableCell>
+                        </StyledTableRow>
                     ))}
-                    <TableRow>
-                        <TableCell colSpan={4} align="center">
-                            {isFilterModeRef.current ? null :
-                                (loadingRef.current && currentIndex < AllDataLength) || (!error) ? <CircularProgress /> : null}
-                        </TableCell>
-                    </TableRow>
+                    <StyledTableRow>
+                        <StyledTableCell colSpan={4} align="center">
+                            { filters.current.range.size ===0 && filters.current.checkbox.size ===0 && isCurrentRowsAmountRef.current < isAllRowsAmountRef.current && (
+                                <CircularProgress />
+                            )}
+                        </StyledTableCell>
+                    </StyledTableRow>
                 </TableBody>
             </Table>
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-                {selectedKey && Array.from(new Set((allRowsToColumn).map(item => item[selectedKey])))
-                    .sort()
-                    .map(value => (
-                        <MenuItem key={value}>
-                            <Checkbox
-                                checked={filterValues[selectedKey]?.has(value) || false}
-                                onChange={() => handleFilterChange(selectedKey, value, filterValues, setFilterValues, isFilterModeRef,setAllRows)}
-                            />
-                            {value}
-                        </MenuItem>
-                    ))}
-            </Menu>
+            <Menu anchorEl={anchorEl} setAnchorEl={setAnchorEl} isSelectedKeyRef={isSelectedKeyRef} filters={filters}
+                  setRows={setRows} SortKey={SortKey} SortDirection={SortDirection} isAllRowsAmountColumnRef={isAllRowsAmountColumnRef}
+            />
+            <Popover anchorEl={anchorEl} setAnchorEl={setAnchorEl} isSelectedKeyRef={isSelectedKeyRef} filters={filters}
+                  setRows={setRows} SortKey={SortKey} SortDirection={SortDirection}
+            />
         </TableContainer>
     );
 };
